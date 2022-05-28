@@ -27,17 +27,36 @@ namespace IngameScript
             private List<IMyPistonBase> _pistons = new List<IMyPistonBase>();
             private IMyTextPanel _lcdMonitor = null;
             private double _totalPistonPosition = 0f;
+            private bool _isInitializedErrorFree = true;
+            private string _errorMessage = "";
 
             private const double _tolerance = 0.1f;
             private const float _activeVelocity = 2.0f;
 
             private bool _destinationReached;
 
-            internal Elevator(List<IMyPistonBase> pistons)
+            internal Elevator(List<IMyPistonBase> pistons, IMyTextPanel textPanel = null)
             {
+                if(textPanel != null)
+                {
+                    this._lcdMonitor = textPanel;
+                }
+
                 foreach(IMyPistonBase p in pistons)
                 {
-                    this._pistons.Add(p);
+                    if(p == null)
+                    {
+                        this._errorMessage = "Cannot allocate piston.";
+                        this._isInitializedErrorFree = false;
+                        if(this._lcdMonitor != null)
+                        {
+                            this._lcdMonitor.WriteText("Elevator initialization failed!\n" + this._errorMessage);
+                        }
+                    }
+                    else
+                    {
+                        this._pistons.Add(p);
+                    }                        
                 }
             }
 

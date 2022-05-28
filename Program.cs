@@ -41,9 +41,10 @@ namespace IngameScript
         public Program()
         {
             // The constructor
-            this.piston3 = GridTerminalSystem.GetBlockWithName("_piston_3") as IMyPistonBase;
-            this.piston2 = GridTerminalSystem.GetBlockWithName("_piston_2") as IMyPistonBase;
-            this.piston1 = GridTerminalSystem.GetBlockWithName("_piston_1") as IMyPistonBase;
+            List<IMyPistonBase> pistons = new List<IMyPistonBase>();
+            pistons.Add(GridTerminalSystem.GetBlockWithName("_piston_1") as IMyPistonBase);
+            Elevator elevator = new Elevator(pistons);
+            
 
             this.output1 = GridTerminalSystem.GetBlockWithName("_output_1") as IMyTextPanel;
 
