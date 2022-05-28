@@ -1,4 +1,8 @@
-﻿using Sandbox.Game.EntityComponents;
+﻿/*
+ * Improved Elevator Script for Space Engineers by Johannes Thom (2022) 
+ * 
+ */
+using Sandbox.Game.EntityComponents;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI.Ingame;
