@@ -26,27 +26,28 @@ namespace IngameScript
         {
             private List<IMyPistonBase> _pistons = new List<IMyPistonBase>();
             private IMyTextPanel _lcdMonitor = null;
+            private Dictionary<string, double> _floors = null;
+            private Direction _direction = Direction.none;
             private double _totalPistonPosition = 0f;
+            private double _destination = 0f;
             private bool _isInitializedErrorFree = true;
-            private string _errorMessage = "";
-
+            private string _errorMessage = string.Empty;
             private const double _tolerance = 0.1f;
             private const float _activeVelocity = 2.0f;
 
-            private bool _destinationReached;
-
-            internal Elevator(List<IMyPistonBase> pistons, IMyTextPanel textPanel = null)
+            internal Elevator(List<IMyPistonBase> pistons, Dictionary<string, double> floors, IMyTextPanel textPanel = null)
             {
                 if(textPanel != null)
                 {
                     this._lcdMonitor = textPanel;
                 }
 
-                foreach(IMyPistonBase p in pistons)
+                // Allocate Pistons
+                foreach(IMyPistonBase piston in this._pistons)
                 {
-                    if(p == null)
+                    if(piston == null)
                     {
-                        this._errorMessage = "Cannot allocate piston.";
+                        this._errorMessage = "Cannot allocate all pistons.";
                         this._isInitializedErrorFree = false;
                         if(this._lcdMonitor != null)
                         {
@@ -55,8 +56,38 @@ namespace IngameScript
                     }
                     else
                     {
-                        this._pistons.Add(p);
+                        this._pistons.Add(piston);
                     }                        
+                }
+
+                // Allocate Floors
+                if(this._isInitializedErrorFree)
+                {
+                    if(floors.Count >= 2)
+                    {
+                        // Check maximum heigth wich can be reach with N pistons (1 piston = 10 units) and allocate the value if it is ok.
+                        foreach(KeyValuePair<string, double> floor in floors)
+                        {
+                            if (floor.Value > (this._pistons.Count * 10))
+                            {
+                                this._errorMessage = "The floor " + floor.Key + " cannot be reached, because there are not enough pistons.";
+                                this._isInitializedErrorFree = false;
+                                if (this._lcdMonitor != null)
+                                {
+                                    this._lcdMonitor.WriteText("Elevator initialization failed!\n" + this._errorMessage);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        this._errorMessage = "You need at least two floors!";
+                        this._isInitializedErrorFree = false;
+                        if (this._lcdMonitor != null)
+                        {
+                            this._lcdMonitor.WriteText("Elevator initialization failed!\n" + this._errorMessage);
+                        }
+                    }
                 }
             }
 
@@ -74,12 +105,28 @@ namespace IngameScript
                 }
                 else
                 {
-                    //Echo("ERROR! (Cannot parse " + extractedValue);
+                    this._errorMessage = "(Cannot parse " + extractedValue + ")";
                     return -1.0f;
                 }
             }
 
-            internal double TotalPistonPosition
+            internal string ErrorMessage
+            {
+                get
+                {
+                    return this._errorMessage;
+                }
+            }
+
+            internal bool IsInitializedErrorFree
+            {
+                get
+                {
+                    return this._isInitializedErrorFree;
+                }
+            }
+
+            internal double GetElevatorPosition
             {
                 get
                 {
@@ -94,7 +141,7 @@ namespace IngameScript
                 }
             }
 
-            internal void StopPistons()
+            internal void StopElevator()
             {
                 for (int i = 0; i < this._pistons.Count; i++)
                 {
@@ -106,7 +153,85 @@ namespace IngameScript
             {
                 if(this._lcdMonitor != null)
                 {
-                    this._lcdMonitor.WriteText("");
+                    this._lcdMonitor.WriteText(
+                        "=====[ Elevator Info ]=====" +
+                        "\nDate & Time:" + DateTime.Now.ToString() +
+                        "\nDestination height: " + this._destination +
+                        "\nCurrent height: " + this.GetElevatorPosition +
+                        "\nDirection: " + "" +
+                        "\nDestination reached: " + this.IsDestinationReached.ToString() +
+                        "\n\nError: " + this.ErrorMessage
+                    , false);
+                }
+            }
+
+            internal bool IsDestinationReached
+            {
+                get
+                {
+                    if (this._totalPistonPosition >= this._destination - tolerance && this._totalPistonPosition <= this._destination + tolerance)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            internal bool SetDestination(string floor)
+            {
+                if (this._floors.TryGetValue(floor, out this._destination))
+                {
+                    if(this._destination > this._totalPistonPosition)
+                    {
+                        this._direction = Direction.up;
+                    }
+                    else
+                    {
+                        this._direction = Direction.down;
+                    }
+                    return true;
+                }
+                else
+                {
+                    this._errorMessage = "Cannot reach floor " + floor + " or this floor does not exist.";
+                    return false;
+                }
+            }
+
+            internal void Move()
+            {
+                if(this._direction == Direction.up)
+                {
+                    for(int i = 0; i < this._pistons.Count; i++)
+                    {
+                        if(this.GetPistonPosition(this._pistons[i]) < 10.0f)
+                        {
+                            this._pistons[i].Velocity = _activeVelocity;
+                            break;
+                        }
+                        else
+                        {
+                            this._pistons[i].Velocity = 0.0f;
+                        }
+                    }
+                }
+                else if(this._direction == Direction.down)
+                {
+                    for (int i = this._pistons.Count; i > 0; i--)
+                    {
+                        if (this.GetPistonPosition(this._pistons[i]) > 0.0f)
+                        {
+                            this._pistons[i].Velocity = _activeVelocity * -1.0f;
+                            break;
+                        }
+                        else
+                        {
+                            this._pistons[i].Velocity = 0.0f;
+                        }
+                    }
                 }
             }
         }
