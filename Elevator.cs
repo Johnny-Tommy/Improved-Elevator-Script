@@ -147,6 +147,8 @@ namespace IngameScript
                 {
                     this._pistons[i].Velocity = 0.0000f;
                 }
+
+                this._direction = Direction.none;
             }
 
             internal void UpdateLcdScreen()

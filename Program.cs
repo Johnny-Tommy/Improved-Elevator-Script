@@ -75,7 +75,6 @@ namespace IngameScript
 
         public void Main(string arg, UpdateType updateSource)
         {
-
             if (elevator.IsInitializedErrorFree)
             {
                 if (Runtime.UpdateFrequency == UpdateFrequency.None)
