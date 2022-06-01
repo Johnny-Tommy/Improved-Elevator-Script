@@ -227,7 +227,7 @@ namespace IngameScript
                 }
                 else if(this._direction == Direction.down)
                 {
-                    for (int i = this._pistons.Count - 1; i > 0; i--)
+                    for (int i = this._pistons.Count - 1; i >= 0; i--)
                     {
                         if (this.GetPistonPosition(this._pistons[i]) > 0.0f)
                         {
