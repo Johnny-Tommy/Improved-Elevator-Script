@@ -130,7 +130,7 @@ namespace IngameScript
                 }
             }
 
-            internal double GetElevatorPosition
+            internal double ElevatorPosition
             {
                 get
                 {
@@ -163,7 +163,7 @@ namespace IngameScript
                         "=====[ Elevator Info ]=====" +
                         "\nDate & Time:" + DateTime.Now.ToString() +
                         "\nDestination height: " + this._destination +
-                        "\nCurrent height: " + this.GetElevatorPosition +
+                        "\nCurrent height: " + this.ElevatorPosition +
                         "\nDirection: " + this._direction.ToString() +
                         "\nDestination reached: " + this.IsDestinationReached.ToString() +
                         "\n\nError: " + this.ErrorMessage
@@ -175,7 +175,7 @@ namespace IngameScript
             {
                 get
                 {
-                    if (this._totalPistonPosition >= this._destination - tolerance && this._totalPistonPosition <= this._destination + tolerance)
+                    if (this.ElevatorPosition >= this._destination - tolerance && this.ElevatorPosition <= this._destination + tolerance)
                     {
                         return true;
                     }
@@ -190,7 +190,7 @@ namespace IngameScript
             {
                 if (this._floors.TryGetValue(floor, out this._destination))
                 {
-                    if(this._destination > this._totalPistonPosition)
+                    if(this._destination > this.ElevatorPosition)
                     {
                         this._direction = Direction.up;
                     }
@@ -203,6 +203,7 @@ namespace IngameScript
                 else
                 {
                     this._errorMessage = "Cannot reach floor " + floor + " or this floor does not exist.";
+                    this._direction = Direction.none;
                     return false;
                 }
             }
@@ -226,7 +227,7 @@ namespace IngameScript
                 }
                 else if(this._direction == Direction.down)
                 {
-                    for (int i = this._pistons.Count; i > 0; i--)
+                    for (int i = this._pistons.Count - 1; i > 0; i--)
                     {
                         if (this.GetPistonPosition(this._pistons[i]) > 0.0f)
                         {
