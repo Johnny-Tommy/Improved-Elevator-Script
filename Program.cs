@@ -26,8 +26,6 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        private Direction direction;
-        private string destinationFloor;
         private Elevator elevator;
         private const double tolerance = 0.1f;
         private const float activeVelocity = 2.0f;

@@ -26,7 +26,7 @@ namespace IngameScript
         {
             private List<IMyPistonBase> _pistons = new List<IMyPistonBase>();
             private IMyTextPanel _lcdMonitor = null;
-            private Dictionary<string, double> _floors = null;
+            private Dictionary<string, double> _floors = new Dictionary<string, double>();
             private Direction _direction = Direction.none;
             private double _totalPistonPosition = 0f;
             private double _destination = 0f;
@@ -43,7 +43,7 @@ namespace IngameScript
                 }
 
                 // Allocate Pistons
-                foreach(IMyPistonBase piston in this._pistons)
+                foreach(IMyPistonBase piston in pistons)
                 {
                     if(piston == null)
                     {
@@ -76,6 +76,10 @@ namespace IngameScript
                                 {
                                     this._lcdMonitor.WriteText("Elevator initialization failed!\n" + this._errorMessage);
                                 }
+                            }
+                            else
+                            {
+                                this._floors.Add(floor.Key, floor.Value);
                             }
                         }
                     }
@@ -160,7 +164,7 @@ namespace IngameScript
                         "\nDate & Time:" + DateTime.Now.ToString() +
                         "\nDestination height: " + this._destination +
                         "\nCurrent height: " + this.GetElevatorPosition +
-                        "\nDirection: " + "" +
+                        "\nDirection: " + this._direction.ToString() +
                         "\nDestination reached: " + this.IsDestinationReached.ToString() +
                         "\n\nError: " + this.ErrorMessage
                     , false);
@@ -234,6 +238,10 @@ namespace IngameScript
                             this._pistons[i].Velocity = 0.0f;
                         }
                     }
+                }
+                else
+                {
+                    this.StopElevator();
                 }
             }
         }
