@@ -25,17 +25,19 @@ namespace IngameScript
         internal class Elevator
         {
             private List<IMyPistonBase> _pistons = new List<IMyPistonBase>();
+            private List<Floor> _floors = new List<Floor>();
             private IMyTextPanel _lcdMonitor = null;
-            private Dictionary<string, double> _floors = new Dictionary<string, double>();
             private Direction _direction = Direction.none;
+            private Floor _destinationFloor;
             private double _totalPistonPosition = 0f;
-            private double _destination = 0f;
+            //private double _destination = 0f;
             private bool _isInitializedErrorFree = true;
             private string _errorMessage = string.Empty;
             private const double _tolerance = 0.1f;
             private const float _activeVelocity = 2.0f;
 
-            internal Elevator(List<IMyPistonBase> pistons, Dictionary<string, double> floors, IMyTextPanel textPanel = null)
+            // =========================[ CONSTRUCTOR ]========================= \\
+            internal Elevator(List<IMyPistonBase> pistons, List<Floor> floors, IMyTextPanel textPanel = null)
             {
                 if(textPanel != null)
                 {
@@ -60,26 +62,22 @@ namespace IngameScript
                     }                        
                 }
 
-                // Allocate Floors
+                // Checking floors
                 if(this._isInitializedErrorFree)
                 {
                     if(floors.Count >= 2)
                     {
                         // Check maximum heigth wich can be reach with N pistons (1 piston = 10 units) and allocate the value if it is ok.
-                        foreach(KeyValuePair<string, double> floor in floors)
+                        foreach(Floor floor in floors)
                         {
-                            if (floor.Value > (this._pistons.Count * 10))
+                            if (floor.Height > (this._pistons.Count * 10))
                             {
-                                this._errorMessage = "The floor " + floor.Key + " cannot be reached, because there are not enough pistons.";
+                                this._errorMessage = "The floor " + floor.Name + " cannot be reached, because there are not enough pistons.";
                                 this._isInitializedErrorFree = false;
                                 if (this._lcdMonitor != null)
                                 {
                                     this._lcdMonitor.WriteText("Elevator initialization failed!\n" + this._errorMessage);
                                 }
-                            }
-                            else
-                            {
-                                this._floors.Add(floor.Key, floor.Value);
                             }
                         }
                     }
@@ -93,7 +91,7 @@ namespace IngameScript
                         }
                     }
                 }
-            }
+            } // End of constructor
 
             private double GetPistonPosition(IMyPistonBase piston)
             {
@@ -153,6 +151,7 @@ namespace IngameScript
                 }
 
                 this._direction = Direction.none;
+                this._destinationFloor = null;
             }
 
             internal void UpdateLcdScreen()
@@ -160,14 +159,15 @@ namespace IngameScript
                 if(this._lcdMonitor != null)
                 {
                     this._lcdMonitor.WriteText(
-                        "=====[ Elevator Info ]=====" +
+                        "========[ Elevator Info ]========" +
                         "\nDate & Time:" + DateTime.Now.ToString() +
-                        "\nDestination height: " + this._destination +
+                        "\nDestination name: " + this._destinationFloor == null ? "null" : this._destinationFloor.Name +
+                        "\nDestination height: " + this._destinationFloor == null ? "null" : this._destinationFloor.Height +
                         "\nCurrent height: " + this.ElevatorPosition +
                         "\nDirection: " + this._direction.ToString() +
                         "\nDestination reached: " + this.IsDestinationReached.ToString() +
-                        "\n\nError: " + this.ErrorMessage
-                    , false);
+                        "\n\nError: " + this.ErrorMessage == "" ? "no errors found :-)" : this._errorMessage
+                    , false); ;
                 }
             }
 
@@ -175,22 +175,35 @@ namespace IngameScript
             {
                 get
                 {
-                    if (this.ElevatorPosition >= this._destination - tolerance && this.ElevatorPosition <= this._destination + tolerance)
+                    if(this._destinationFloor != null)
                     {
-                        return true;
+                        if (this.ElevatorPosition >= this._destinationFloor.Height - tolerance && this.ElevatorPosition <= this._destinationFloor.Height + tolerance)
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            return false;
+                        }
                     }
                     else
                     {
-                        return false;
+                        // Destination floor wasn't found.
+                        // Stops elevator indirectly by pretending that elevator has reached the target assuming that
+                        // the main program stops the lift if the destination will be reached.
+                        return true;
                     }
                 }
             }
 
             internal bool SetDestination(string floor)
             {
-                if (this._floors.TryGetValue(floor, out this._destination))
+                // Search a certain element:
+                this._destinationFloor = this._floors.Find(f => f.Name == floor);                
+
+                if (this._destinationFloor != null)
                 {
-                    if(this._destination > this.ElevatorPosition)
+                    if (this._destinationFloor.Height > this.ElevatorPosition)
                     {
                         this._direction = Direction.up;
                     }
@@ -198,6 +211,7 @@ namespace IngameScript
                     {
                         this._direction = Direction.down;
                     }
+
                     return true;
                 }
                 else
