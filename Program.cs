@@ -27,8 +27,6 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
         private Elevator elevator;
-        private const double tolerance = 0.1f;
-        private const float activeVelocity = 2.0f;
 
         // ===[Constructor]=== \\
         public Program()
@@ -46,7 +44,7 @@ namespace IngameScript
             List<Floor> floors = new List<Floor>();
             floors.Add(new Floor("floor1", 1.8f, GridTerminalSystem.GetBlockGroupWithName("floor1")));
             floors.Add(new Floor("floor2", 16.8f, GridTerminalSystem.GetBlockGroupWithName("floor2")));
-            floors.Add(new Floor("floor3", 261.8f, GridTerminalSystem.GetBlockGroupWithName("floor3")));
+            floors.Add(new Floor("floor3", 26.8f, GridTerminalSystem.GetBlockGroupWithName("floor3")));
 
             IMyTextPanel lcdDisplay = GridTerminalSystem.GetBlockWithName("_output_1") as IMyTextPanel;
 

@@ -26,23 +26,22 @@ namespace IngameScript
         {
             private List<IMyPistonBase> _pistons = new List<IMyPistonBase>();
             private List<Floor> _floors = new List<Floor>();
-            private IMyTextPanel _lcdMonitor = null;
+            private IMyTextPanel _lcdMonitor;
             private Direction _direction = Direction.none;
             private Floor _destinationFloor;
             private double _totalPistonPosition = 0f;
-            //private double _destination = 0f;
             private bool _isInitializedErrorFree = true;
             private string _errorMessage = string.Empty;
-            private const double _tolerance = 0.1f;
-            private const float _activeVelocity = 2.0f;
+
+            private float _startPosition = 0.0f;
+            private double _tolerance = 0.1f;
+            private float _maxVelocity = 5.0f;
+            private float _accelleration = 0.5f;
 
             // =========================[ CONSTRUCTOR ]========================= \\
             internal Elevator(List<IMyPistonBase> pistons, List<Floor> floors, IMyTextPanel textPanel = null)
             {
-                if(textPanel != null)
-                {
-                    this._lcdMonitor = textPanel;
-                }
+                this._lcdMonitor = textPanel;
 
                 // Allocate Pistons
                 foreach(IMyPistonBase piston in pistons)
@@ -78,6 +77,10 @@ namespace IngameScript
                                 {
                                     this._lcdMonitor.WriteText("Elevator initialization failed!\n" + this._errorMessage);
                                 }
+                            }
+                            else
+                            {
+                                this._floors.Add(floor);
                             }
                         }
                     }
@@ -128,7 +131,7 @@ namespace IngameScript
                 }
             }
 
-            internal double ElevatorPosition
+            internal float ElevatorPosition
             {
                 get
                 {
@@ -139,7 +142,7 @@ namespace IngameScript
                         this._totalPistonPosition += this.GetPistonPosition(p);
                     }
 
-                    return this._totalPistonPosition;
+                    return (float)this._totalPistonPosition;
                 }
             }
 
@@ -156,18 +159,22 @@ namespace IngameScript
 
             internal void UpdateLcdScreen()
             {
-                if(this._lcdMonitor != null)
+                string tmpName = this._destinationFloor == null ? "null" : this._destinationFloor.Name;
+                string tmpDestHeight = this._destinationFloor == null ? "null" : this._destinationFloor.Height.ToString();
+                string tmpErrorMsg = this._errorMessage == "" ? "no errors found :-)" : this._errorMessage;
+
+                if (this._lcdMonitor != null)
                 {
                     this._lcdMonitor.WriteText(
                         "========[ Elevator Info ]========" +
                         "\nDate & Time:" + DateTime.Now.ToString() +
-                        "\nDestination name: " + this._destinationFloor == null ? "null" : this._destinationFloor.Name +
-                        "\nDestination height: " + this._destinationFloor == null ? "null" : this._destinationFloor.Height +
+                        "\nDestination name: " + tmpName +
+                        "\nDestination height: " + tmpDestHeight +
                         "\nCurrent height: " + this.ElevatorPosition +
                         "\nDirection: " + this._direction.ToString() +
                         "\nDestination reached: " + this.IsDestinationReached.ToString() +
-                        "\n\nError: " + this.ErrorMessage == "" ? "no errors found :-)" : this._errorMessage
-                    , false); ;
+                        "\n\nError: " + tmpErrorMsg
+                    , false);
                 }
             }
 
@@ -177,7 +184,7 @@ namespace IngameScript
                 {
                     if(this._destinationFloor != null)
                     {
-                        if (this.ElevatorPosition >= this._destinationFloor.Height - tolerance && this.ElevatorPosition <= this._destinationFloor.Height + tolerance)
+                        if (this.ElevatorPosition >= this._destinationFloor.Height - this._tolerance && this.ElevatorPosition <= this._destinationFloor.Height + this._tolerance)
                         {
                             return true;
                         }
@@ -199,7 +206,10 @@ namespace IngameScript
             internal bool SetDestination(string floor)
             {
                 // Search a certain element:
-                this._destinationFloor = this._floors.Find(f => f.Name == floor);                
+                this._destinationFloor = this._floors.Find(f => f.Name == floor);
+
+                // Remember the start position for later calculations to get the current velocity.
+                this._startPosition = this.ElevatorPosition;
 
                 if (this._destinationFloor != null)
                 {
@@ -230,7 +240,7 @@ namespace IngameScript
                     {
                         if(this.GetPistonPosition(this._pistons[i]) < 10.0f)
                         {
-                            this._pistons[i].Velocity = _activeVelocity;
+                            this._pistons[i].Velocity = this.GetCurrentVelocity();
                             break;
                         }
                         else
@@ -245,7 +255,7 @@ namespace IngameScript
                     {
                         if (this.GetPistonPosition(this._pistons[i]) > 0.0f)
                         {
-                            this._pistons[i].Velocity = _activeVelocity * -1.0f;
+                            this._pistons[i].Velocity = this.GetCurrentVelocity() * -1.0f;
                             break;
                         }
                         else
@@ -258,6 +268,23 @@ namespace IngameScript
                 {
                     this.StopElevator();
                 }
+            }
+
+            // Calculate active velocity dynamically and relative to the distance that must be covered.
+            // We will achieve a smooth start and stop speed.
+            internal float GetCurrentVelocity()
+            {
+                // X must not be zero, because the velocity would be zero forever and the elevator would not start.
+                // To avoid this, we add a very tiny value to the result.
+                float x = this.ElevatorPosition - this._startPosition + 0.00001f;
+                
+                // X must not be negative. So, when the elevator moves down, we have to change the negative value into an positive.
+                if (this._direction == Direction.down) { x *= -1f; } 
+
+                float y1 = this._accelleration * x;
+                float y2 = this._accelleration * -(x - this._destinationFloor.Height);
+
+                return Math.Min(Math.Min(y1, y2),this._maxVelocity);
             }
         }
     }

@@ -25,12 +25,12 @@ namespace IngameScript
         internal class Floor
         {
             internal string Name { get; private set; }
-            internal double Height { get; private set; }
+            internal float Height { get; private set; }
             // A optional list with doors which will open automatically until the elevator reached its destination
             // and will be closed when the elevator starts moving.
             internal List<IMyDoor> Doors { get; private set; } = new List<IMyDoor>();
 
-            internal Floor(string name, double height, IMyBlockGroup blockGroup = null)
+            internal Floor(string name, float height, IMyBlockGroup blockGroup = null)
             {
                 this.Name = name;
                 this.Height = height;
