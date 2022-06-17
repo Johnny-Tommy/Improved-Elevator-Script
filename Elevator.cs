@@ -34,8 +34,9 @@ namespace IngameScript
             private string _errorMessage = string.Empty;
 
             private float _startPosition = 0.0f;
-            private double _tolerance = 0.1f;
+            private float _tolerance = 0.05f;
             private float _maxVelocity = 5.0f;
+            private float _minVelocity = 0.5f; 
             private float _accelleration = 0.5f;
 
             // =========================[ CONSTRUCTOR ]========================= \\
@@ -167,10 +168,11 @@ namespace IngameScript
                 {
                     this._lcdMonitor.WriteText(
                         "========[ Elevator Info ]========" +
-                        "\nDate & Time:" + DateTime.Now.ToString() +
+                        "\nDate & Time: " + DateTime.Now.ToString() +
                         "\nDestination name: " + tmpName +
-                        "\nDestination height: " + tmpDestHeight +
-                        "\nCurrent height: " + this.ElevatorPosition +
+                        "\nStart position: " + this._startPosition.ToString() +
+                        "\nCurrent height: " + this.ElevatorPosition.ToString() +
+                        "\nDestination height: " + tmpDestHeight.ToString() +
                         "\nDirection: " + this._direction.ToString() +
                         "\nDestination reached: " + this.IsDestinationReached.ToString() +
                         "\n\nError: " + tmpErrorMsg
@@ -276,15 +278,37 @@ namespace IngameScript
             {
                 // X must not be zero, because the velocity would be zero forever and the elevator would not start.
                 // To avoid this, we add a very tiny value to the result.
-                float x = this.ElevatorPosition - this._startPosition + 0.00001f;
-                
-                // X must not be negative. So, when the elevator moves down, we have to change the negative value into an positive.
-                if (this._direction == Direction.down) { x *= -1f; } 
+                float x = this.ElevatorPosition - this._startPosition;
+                float y1, y2;
 
-                float y1 = this._accelleration * x;
-                float y2 = this._accelleration * -(x - this._destinationFloor.Height);
+                if (this._direction == Direction.up)
+                {
+                    y1 = this._accelleration * x;
+                    y2 = this._accelleration * -(x - this._destinationFloor.Height + this._startPosition);
+                }
+                else if (this._direction == Direction.down)
+                {
+                    // X must not be negative, else we always would get a negative value
+                    // So, when the elevator moves down, we have to change the negative value into an positive.
+                    x = x * -1f;
+                    y1 = this._accelleration * x;
+                    y2 = (this._accelleration * -(x - (this._startPosition - this._destinationFloor.Height)));                    
+                }
+                else // none
+                {
+                    return 0f;
+                }
 
-                return Math.Min(Math.Min(y1, y2),this._maxVelocity);
+                float v = Math.Min(Math.Min(y1, y2), this._maxVelocity);
+
+                if (v < this._minVelocity)
+                {
+                    return this._minVelocity;
+                }
+                else
+                {
+                    return v;
+                }                
             }
         }
     }
