@@ -34,7 +34,7 @@ namespace IngameScript
             private string _errorMessage = string.Empty;
 
             private float _startPosition = 0.0f;
-            private float _tolerance = 0.05f;
+            private float _tolerance = 0.1f;
             private float _maxVelocity = 5.0f;
             private float _minVelocity = 0.5f; 
             private float _accelleration = 0.5f;
@@ -236,37 +236,17 @@ namespace IngameScript
 
             internal void Move()
             {
-                if(this._direction == Direction.up)
+                // Distribute the total velocity to all pistons to reach smooth ride.
+                float v = this.GetCurrentVelocity() / this._pistons.Count;
+
+                if (this._direction == Direction.up || this._direction == Direction.down)
                 {
-                    for(int i = 0; i < this._pistons.Count; i++)
+                    for (int i = 0; i < this._pistons.Count; i++)
                     {
-                        if(this.GetPistonPosition(this._pistons[i]) < 10.0f)
-                        {
-                            this._pistons[i].Velocity = this.GetCurrentVelocity();
-                            break;
-                        }
-                        else
-                        {
-                            this._pistons[i].Velocity = 0.0f;
-                        }
+                        this._pistons[i].Velocity = v;
                     }
                 }
-                else if(this._direction == Direction.down)
-                {
-                    for (int i = this._pistons.Count - 1; i >= 0; i--)
-                    {
-                        if (this.GetPistonPosition(this._pistons[i]) > 0.0f)
-                        {
-                            this._pistons[i].Velocity = this.GetCurrentVelocity() * -1.0f;
-                            break;
-                        }
-                        else
-                        {
-                            this._pistons[i].Velocity = 0.0f;
-                        }
-                    }
-                }
-                else
+                else // direction = none
                 {
                     this.StopElevator();
                 }
@@ -279,14 +259,14 @@ namespace IngameScript
                 // X must not be zero, because the velocity would be zero forever and the elevator would not start.
                 // To avoid this, we add a very tiny value to the result.
                 float x = this.ElevatorPosition - this._startPosition;
-                float y1, y2;
+                float y1, y2, v;
 
                 if (this._direction == Direction.up)
                 {
                     y1 = this._accelleration * x;
                     y2 = this._accelleration * -(x - this._destinationFloor.Height + this._startPosition);
                 }
-                else if (this._direction == Direction.down)
+                else
                 {
                     // X must not be negative, else we always would get a negative value
                     // So, when the elevator moves down, we have to change the negative value into an positive.
@@ -294,21 +274,22 @@ namespace IngameScript
                     y1 = this._accelleration * x;
                     y2 = (this._accelleration * -(x - (this._startPosition - this._destinationFloor.Height)));                    
                 }
+
+                v = Math.Min(Math.Min(y1, y2), this._maxVelocity);                
+                if (v < this._minVelocity) { v = this._minVelocity; }
+
+                if (this._direction == Direction.up)
+                {
+                    return v;
+                }
+                else  if (this._direction == Direction.down)
+                {
+                    return v * -1f;
+                }
                 else // none
                 {
                     return 0f;
                 }
-
-                float v = Math.Min(Math.Min(y1, y2), this._maxVelocity);
-
-                if (v < this._minVelocity)
-                {
-                    return this._minVelocity;
-                }
-                else
-                {
-                    return v;
-                }                
             }
         }
     }
