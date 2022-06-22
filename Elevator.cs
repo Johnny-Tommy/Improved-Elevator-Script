@@ -237,6 +237,11 @@ namespace IngameScript
             internal void Move()
             {
                 // Distribute the total velocity to all pistons to reach smooth ride.
+                // Important notice: If we distribute the velocity, we will get an new problem,
+                // because the value vor the heigth of a piston has only one decimal place :-(.
+                // That means that the whole elevators height value is no more precisly like
+                // with only one piston. (0,1 + 0,1 + 0,1 with three pistons = 0,3 as smalest value)
+                // Solution: We could allocate the velocity only to one piston at the last meter.
                 float v = this.GetCurrentVelocity() / this._pistons.Count;
 
                 if (this._direction == Direction.up || this._direction == Direction.down)
