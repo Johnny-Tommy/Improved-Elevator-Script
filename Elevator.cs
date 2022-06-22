@@ -192,7 +192,19 @@ namespace IngameScript
                         }
                         else
                         {
-                            return false;
+                            // Emergency stop ;-)
+                            if (this._direction == Direction.up && this.ElevatorPosition > this._destinationFloor.Height)
+                            {
+                                return true;
+                            }
+                            else if (this._direction == Direction.down && this.ElevatorPosition < this._destinationFloor.Height)
+                            {
+                                return true;
+                            }
+                            else
+                            {
+                                return false;
+                            }
                         }
                     }
                     else
