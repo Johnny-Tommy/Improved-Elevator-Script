@@ -25,22 +25,24 @@ namespace IngameScript
         internal class Elevator
         {
             private List<IMyPistonBase> _pistons = new List<IMyPistonBase>();
-            private IMyTextPanel _lcdMonitor = null;
-            private Dictionary<string, double> _floors = new Dictionary<string, double>();
+            private List<Floor> _floors = new List<Floor>();
+            private IMyTextPanel _lcdMonitor;
             private Direction _direction = Direction.none;
+            private Floor _destinationFloor;
             private double _totalPistonPosition = 0f;
-            private double _destination = 0f;
             private bool _isInitializedErrorFree = true;
             private string _errorMessage = string.Empty;
-            private const double _tolerance = 0.1f;
-            private const float _activeVelocity = 2.0f;
 
-            internal Elevator(List<IMyPistonBase> pistons, Dictionary<string, double> floors, IMyTextPanel textPanel = null)
+            private float _startPosition = 0.0f;
+            private float _tolerance = 0.1f;
+            private float _maxVelocity = 5.0f;
+            private float _minVelocity = 0.5f; 
+            private float _accelleration = 0.5f;
+
+            // =========================[ CONSTRUCTOR ]========================= \\
+            internal Elevator(List<IMyPistonBase> pistons, List<Floor> floors, IMyTextPanel textPanel = null)
             {
-                if(textPanel != null)
-                {
-                    this._lcdMonitor = textPanel;
-                }
+                this._lcdMonitor = textPanel;
 
                 // Allocate Pistons
                 foreach(IMyPistonBase piston in pistons)
@@ -60,17 +62,17 @@ namespace IngameScript
                     }                        
                 }
 
-                // Allocate Floors
+                // Checking floors
                 if(this._isInitializedErrorFree)
                 {
                     if(floors.Count >= 2)
                     {
                         // Check maximum heigth wich can be reach with N pistons (1 piston = 10 units) and allocate the value if it is ok.
-                        foreach(KeyValuePair<string, double> floor in floors)
+                        foreach(Floor floor in floors)
                         {
-                            if (floor.Value > (this._pistons.Count * 10))
+                            if (floor.Height > (this._pistons.Count * 10))
                             {
-                                this._errorMessage = "The floor " + floor.Key + " cannot be reached, because there are not enough pistons.";
+                                this._errorMessage = "The floor " + floor.Name + " cannot be reached, because there are not enough pistons.";
                                 this._isInitializedErrorFree = false;
                                 if (this._lcdMonitor != null)
                                 {
@@ -79,7 +81,7 @@ namespace IngameScript
                             }
                             else
                             {
-                                this._floors.Add(floor.Key, floor.Value);
+                                this._floors.Add(floor);
                             }
                         }
                     }
@@ -93,7 +95,7 @@ namespace IngameScript
                         }
                     }
                 }
-            }
+            } // End of constructor
 
             private double GetPistonPosition(IMyPistonBase piston)
             {
@@ -130,7 +132,7 @@ namespace IngameScript
                 }
             }
 
-            internal double ElevatorPosition
+            internal float ElevatorPosition
             {
                 get
                 {
@@ -141,7 +143,7 @@ namespace IngameScript
                         this._totalPistonPosition += this.GetPistonPosition(p);
                     }
 
-                    return this._totalPistonPosition;
+                    return (float)this._totalPistonPosition;
                 }
             }
 
@@ -153,20 +155,27 @@ namespace IngameScript
                 }
 
                 this._direction = Direction.none;
+                this._destinationFloor = null;
             }
 
             internal void UpdateLcdScreen()
             {
-                if(this._lcdMonitor != null)
+                string tmpName = this._destinationFloor == null ? "null" : this._destinationFloor.Name;
+                string tmpDestHeight = this._destinationFloor == null ? "null" : this._destinationFloor.Height.ToString();
+                string tmpErrorMsg = this._errorMessage == "" ? "no errors found :-)" : this._errorMessage;
+
+                if (this._lcdMonitor != null)
                 {
                     this._lcdMonitor.WriteText(
-                        "=====[ Elevator Info ]=====" +
-                        "\nDate & Time:" + DateTime.Now.ToString() +
-                        "\nDestination height: " + this._destination +
-                        "\nCurrent height: " + this.ElevatorPosition +
+                        "========[ Elevator Info ]========" +
+                        "\nDate & Time: " + DateTime.Now.ToString() +
+                        "\nDestination name: " + tmpName +
+                        "\nStart position: " + this._startPosition.ToString() +
+                        "\nCurrent height: " + this.ElevatorPosition.ToString() +
+                        "\nDestination height: " + tmpDestHeight.ToString() +
                         "\nDirection: " + this._direction.ToString() +
                         "\nDestination reached: " + this.IsDestinationReached.ToString() +
-                        "\n\nError: " + this.ErrorMessage
+                        "\n\nError: " + tmpErrorMsg
                     , false);
                 }
             }
@@ -175,22 +184,50 @@ namespace IngameScript
             {
                 get
                 {
-                    if (this.ElevatorPosition >= this._destination - tolerance && this.ElevatorPosition <= this._destination + tolerance)
+                    if(this._destinationFloor != null)
                     {
-                        return true;
+                        if (this.ElevatorPosition >= this._destinationFloor.Height - this._tolerance && this.ElevatorPosition <= this._destinationFloor.Height + this._tolerance)
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            // Emergency stop ;-)
+                            if (this._direction == Direction.up && this.ElevatorPosition > this._destinationFloor.Height)
+                            {
+                                return true;
+                            }
+                            else if (this._direction == Direction.down && this.ElevatorPosition < this._destinationFloor.Height)
+                            {
+                                return true;
+                            }
+                            else
+                            {
+                                return false;
+                            }
+                        }
                     }
                     else
                     {
-                        return false;
+                        // Destination floor wasn't found.
+                        // Stops elevator indirectly by pretending that elevator has reached the target assuming that
+                        // the main program stops the lift if the destination will be reached.
+                        return true;
                     }
                 }
             }
 
             internal bool SetDestination(string floor)
             {
-                if (this._floors.TryGetValue(floor, out this._destination))
+                // Search a certain element:
+                this._destinationFloor = this._floors.Find(f => f.Name == floor);
+
+                // Remember the start position for later calculations to get the current velocity.
+                this._startPosition = this.ElevatorPosition;
+
+                if (this._destinationFloor != null)
                 {
-                    if(this._destination > this.ElevatorPosition)
+                    if (this._destinationFloor.Height > this.ElevatorPosition)
                     {
                         this._direction = Direction.up;
                     }
@@ -198,6 +235,7 @@ namespace IngameScript
                     {
                         this._direction = Direction.down;
                     }
+
                     return true;
                 }
                 else
@@ -210,39 +248,64 @@ namespace IngameScript
 
             internal void Move()
             {
-                if(this._direction == Direction.up)
+                // Distribute the total velocity to all pistons to reach smooth ride.
+                // Important notice: If we distribute the velocity, we will get an new problem,
+                // because the value vor the heigth of a piston has only one decimal place :-(.
+                // That means that the whole elevators height value is no more precisly like
+                // with only one piston. (0,1 + 0,1 + 0,1 with three pistons = 0,3 as smalest value)
+                // Solution: We could allocate the velocity only to one piston at the last meter.
+                float v = this.GetCurrentVelocity() / this._pistons.Count;
+
+                if (this._direction == Direction.up || this._direction == Direction.down)
                 {
-                    for(int i = 0; i < this._pistons.Count; i++)
+                    for (int i = 0; i < this._pistons.Count; i++)
                     {
-                        if(this.GetPistonPosition(this._pistons[i]) < 10.0f)
-                        {
-                            this._pistons[i].Velocity = _activeVelocity;
-                            break;
-                        }
-                        else
-                        {
-                            this._pistons[i].Velocity = 0.0f;
-                        }
+                        this._pistons[i].Velocity = v;
                     }
                 }
-                else if(this._direction == Direction.down)
+                else // direction = none
                 {
-                    for (int i = this._pistons.Count - 1; i >= 0; i--)
-                    {
-                        if (this.GetPistonPosition(this._pistons[i]) > 0.0f)
-                        {
-                            this._pistons[i].Velocity = _activeVelocity * -1.0f;
-                            break;
-                        }
-                        else
-                        {
-                            this._pistons[i].Velocity = 0.0f;
-                        }
-                    }
+                    this.StopElevator();
+                }
+            }
+
+            // Calculate active velocity dynamically and relative to the distance that must be covered.
+            // We will achieve a smooth start and stop speed.
+            internal float GetCurrentVelocity()
+            {
+                // X must not be zero, because the velocity would be zero forever and the elevator would not start.
+                // To avoid this, we add a very tiny value to the result.
+                float x = this.ElevatorPosition - this._startPosition;
+                float y1, y2, v;
+
+                if (this._direction == Direction.up)
+                {
+                    y1 = this._accelleration * x;
+                    y2 = this._accelleration * -(x - this._destinationFloor.Height + this._startPosition);
                 }
                 else
                 {
-                    this.StopElevator();
+                    // X must not be negative, else we always would get a negative value
+                    // So, when the elevator moves down, we have to change the negative value into an positive.
+                    x = x * -1f;
+                    y1 = this._accelleration * x;
+                    y2 = (this._accelleration * -(x - (this._startPosition - this._destinationFloor.Height)));                    
+                }
+
+                v = Math.Min(Math.Min(y1, y2), this._maxVelocity);                
+                if (v < this._minVelocity) { v = this._minVelocity; }
+
+                if (this._direction == Direction.up)
+                {
+                    return v;
+                }
+                else  if (this._direction == Direction.down)
+                {
+                    return v * -1f;
+                }
+                else // none
+                {
+                    return 0f;
                 }
             }
         }

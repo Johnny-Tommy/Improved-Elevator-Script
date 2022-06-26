@@ -27,9 +27,8 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
         private Elevator elevator;
-        private const double tolerance = 0.1f;
-        private const float activeVelocity = 2.0f;
 
+        // ===[Constructor]=== \\
         public Program()
         {
             // Piston 1, 2 and 3
@@ -42,10 +41,10 @@ namespace IngameScript
             pistons.Add(GridTerminalSystem.GetBlockWithName("_piston_2") as IMyPistonBase);
             pistons.Add(GridTerminalSystem.GetBlockWithName("_piston_3") as IMyPistonBase);
 
-            Dictionary<string, double> floors = new Dictionary<string, double>();
-            floors.Add("floor1", 1.8f);
-            floors.Add("floor2", 16.8f);
-            floors.Add("floor3", 26.8f);
+            List<Floor> floors = new List<Floor>();
+            floors.Add(new Floor("floor1", 1.8f, GridTerminalSystem.GetBlockGroupWithName("floor1")));
+            floors.Add(new Floor("floor2", 16.8f, GridTerminalSystem.GetBlockGroupWithName("floor2")));
+            floors.Add(new Floor("floor3", 26.8f, GridTerminalSystem.GetBlockGroupWithName("floor3")));
 
             IMyTextPanel lcdDisplay = GridTerminalSystem.GetBlockWithName("_output_1") as IMyTextPanel;
 
