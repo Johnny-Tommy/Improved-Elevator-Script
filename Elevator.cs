@@ -24,6 +24,10 @@ namespace IngameScript
     {
         internal class Elevator
         {
+            internal int StartDelay { get; set; } = 0; // in sec.
+            // Saves the Time when the elevator starts. We need this to start with a delay if delay is bigger than 0
+            private DateTime _startTime = DateTime.MinValue;
+            
             private List<IMyPistonBase> _pistons = new List<IMyPistonBase>();
             private List<Floor> _floors = new List<Floor>();
             private IMyTextPanel _lcdMonitor;
@@ -31,7 +35,7 @@ namespace IngameScript
             private Floor _destinationFloor;
             private double _totalPistonPosition = 0f;
             private bool _isInitializedErrorFree = true;
-            private string _errorMessage = string.Empty;
+            private string _errorMessage = string.Empty;            
 
             private float _startPosition = 0.0f;
             private float _tolerance = 0.1f;
@@ -95,7 +99,22 @@ namespace IngameScript
                         }
                     }
                 }
+
+                // Close all doors.
+                if(this.IsInitializedErrorFree)
+                {
+                    this.CloseAllDoors();
+                }
+
             } // End of constructor
+
+            internal int ElapsedTime 
+            { 
+                get
+                {
+                    return (DateTime.Now - this._startTime).Seconds;
+                } 
+            }
 
             private double GetPistonPosition(IMyPistonBase piston)
             {
@@ -147,15 +166,41 @@ namespace IngameScript
                 }
             }
 
-            internal void StopElevator()
+            internal void StopElevator(bool openDoors = true)
             {
                 for (int i = 0; i < this._pistons.Count; i++)
                 {
                     this._pistons[i].Velocity = 0.0000f;
                 }
 
+                if (openDoors)
+                {
+                    // open all doors, if there are some
+                    this.OpenDoorsOnDestination();
+                }
+
                 this._direction = Direction.none;
                 this._destinationFloor = null;
+                this._startTime = DateTime.MinValue; // Set to "0" for "reset".
+            }
+
+            private void OpenDoorsOnDestination()
+            {
+                foreach(IMyDoor door in this._destinationFloor.Doors)
+                {
+                    door.OpenDoor();                  
+                }
+            }
+
+            private void CloseAllDoors()
+            {
+                foreach(Floor floor in this._floors)
+                {
+                    foreach(IMyDoor door in floor.Doors)
+                    {
+                        door.CloseDoor();
+                    }
+                }
             }
 
             internal void UpdateLcdScreen()
@@ -170,6 +215,7 @@ namespace IngameScript
                         "========[ Elevator Info ]========" +
                         "\nDate & Time: " + DateTime.Now.ToString() +
                         "\nDestination name: " + tmpName +
+                        "\nElapsed time: " + this.ElapsedTime.ToString() +
                         "\nStart position: " + this._startPosition.ToString() +
                         "\nCurrent height: " + this.ElevatorPosition.ToString() +
                         "\nDestination height: " + tmpDestHeight.ToString() +
@@ -236,6 +282,8 @@ namespace IngameScript
                         this._direction = Direction.down;
                     }
 
+                    this.CloseAllDoors();
+
                     return true;
                 }
                 else
@@ -248,24 +296,32 @@ namespace IngameScript
 
             internal void Move()
             {
-                // Distribute the total velocity to all pistons to reach smooth ride.
-                // Important notice: If we distribute the velocity, we will get an new problem,
-                // because the value vor the heigth of a piston has only one decimal place :-(.
-                // That means that the whole elevators height value is no more precisly like
-                // with only one piston. (0,1 + 0,1 + 0,1 with three pistons = 0,3 as smalest value)
-                // Solution: We could allocate the velocity only to one piston at the last meter.
-                float v = this.GetCurrentVelocity() / this._pistons.Count;
-
-                if (this._direction == Direction.up || this._direction == Direction.down)
+                if (this._startTime == DateTime.MinValue)
                 {
-                    for (int i = 0; i < this._pistons.Count; i++)
-                    {
-                        this._pistons[i].Velocity = v;
-                    }
+                    this._startTime = DateTime.Now; // The real starttime when someone starts the elevator.
                 }
-                else // direction = none
+
+                if (this.ElapsedTime > this.StartDelay)
                 {
-                    this.StopElevator();
+                    // Distribute the total velocity to all pistons to reach smooth ride.
+                    // Important notice: If we distribute the velocity, we will get an new problem,
+                    // because the value vor the heigth of a piston has only one decimal place :-(.
+                    // That means that the whole elevators height value is no more precisly like
+                    // with only one piston. (0,1 + 0,1 + 0,1 with three pistons = 0,3 as smalest value)
+                    // Solution: We could allocate the velocity only to one piston at the last meter.
+                    float v = this.GetCurrentVelocity() / this._pistons.Count;
+
+                    if (this._direction == Direction.up || this._direction == Direction.down)
+                    {
+                        for (int i = 0; i < this._pistons.Count; i++)
+                        {
+                            this._pistons[i].Velocity = v;
+                        }
+                    }
+                    else // direction = none
+                    {
+                        this.StopElevator();
+                    }
                 }
             }
 

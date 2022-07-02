@@ -42,14 +42,15 @@ namespace IngameScript
             pistons.Add(GridTerminalSystem.GetBlockWithName("_piston_3") as IMyPistonBase);
 
             List<Floor> floors = new List<Floor>();
-            floors.Add(new Floor("floor1", 1.8f, GridTerminalSystem.GetBlockGroupWithName("floor1")));
-            floors.Add(new Floor("floor2", 16.8f, GridTerminalSystem.GetBlockGroupWithName("floor2")));
-            floors.Add(new Floor("floor3", 26.8f, GridTerminalSystem.GetBlockGroupWithName("floor3")));
+            floors.Add(new Floor("floor1", 1.8f, GridTerminalSystem.GetBlockGroupWithName("grp_floor1")));
+            floors.Add(new Floor("floor2", 16.8f, GridTerminalSystem.GetBlockGroupWithName("grp_floor2")));
+            floors.Add(new Floor("floor3", 26.8f, GridTerminalSystem.GetBlockGroupWithName("grp_floor3")));
 
             IMyTextPanel lcdDisplay = GridTerminalSystem.GetBlockWithName("_output_1") as IMyTextPanel;
 
             elevator = new Elevator(pistons, floors, lcdDisplay);
-            
+            elevator.StartDelay = 3;
+
             Runtime.UpdateFrequency = UpdateFrequency.None;
 
             if(elevator.IsInitializedErrorFree)
@@ -58,6 +59,7 @@ namespace IngameScript
                 {
                     lcdDisplay.WriteText("Elevator initilized successfully.");
                 }
+
                 Echo("Elevator initilized successfully.");
             }
             else
