@@ -31,6 +31,7 @@ namespace IngameScript
             private List<IMyPistonBase> _pistons = new List<IMyPistonBase>();
             private List<Floor> _floors = new List<Floor>();
             private IMyTextPanel _lcdMonitor;
+            private IMySoundBlock _soundBlock;
             private Direction _direction = Direction.none;
             private Floor _destinationFloor;
             private double _totalPistonPosition = 0f;
@@ -44,69 +45,117 @@ namespace IngameScript
             private float _accelleration = 0.5f;
 
             // =========================[ CONSTRUCTOR ]========================= \\
-            internal Elevator(List<IMyPistonBase> pistons, List<Floor> floors, IMyTextPanel textPanel = null)
+            internal Elevator(IMyBlockGroup objects, List<Floor> floors)
             {
-                this._lcdMonitor = textPanel;
-
-                // Allocate Pistons
-                foreach(IMyPistonBase piston in pistons)
+                if (objects != null)
                 {
-                    if(piston == null)
+                    List<IMyPistonBase> pistons = new List<IMyPistonBase>();
+                    List<IMyTextPanel> textPanels = new List<IMyTextPanel>();
+                    List<IMySoundBlock> soundBlocks = new List<IMySoundBlock>();
+
+                    // Allocate textpanel / LCD-Display
+                    objects.GetBlocksOfType<IMyTextPanel>(textPanels);
+
+                    if (textPanels.Count == 1)
                     {
-                        this._errorMessage = "Cannot allocate all pistons.";
+                        this._lcdMonitor = textPanels[0];
+                    }
+                    else if (textPanels.Count > 1)
+                    {
                         this._isInitializedErrorFree = false;
-                        if(this._lcdMonitor != null)
+                        this._errorMessage += "You have more than one TextPanel in your elevator group.\n";
+                    }
+
+                    // Allocate soundblock
+                    objects.GetBlocksOfType<IMySoundBlock>(soundBlocks);
+
+                    if (soundBlocks.Count == 1)
+                    {
+                        this._soundBlock = soundBlocks[0];
+                    }
+                    else if (soundBlocks.Count > 1)
+                    {
+                        this._isInitializedErrorFree = false;
+                        this._errorMessage += "You have more than one SoundBlock in your elevator group.\n";
+                    }
+
+
+                    // Allocate Pistons
+                    objects.GetBlocksOfType<IMyPistonBase>(pistons);
+
+                    foreach (IMyPistonBase piston in pistons)
+                    {
+                        if (piston == null)
                         {
-                            this._lcdMonitor.WriteText("Elevator initialization failed!\n" + this._errorMessage);
+                            this._isInitializedErrorFree = false;
+                            this._errorMessage += "Cannot allocate all pistons.\n";
+                        }
+                        else
+                        {
+                            this._pistons.Add(piston);
                         }
                     }
-                    else
-                    {
-                        this._pistons.Add(piston);
-                    }                        
-                }
 
-                // Checking floors
-                if(this._isInitializedErrorFree)
-                {
-                    if(floors.Count >= 2)
+                    // Checking floors
+                    if (this._isInitializedErrorFree)
                     {
-                        // Check maximum heigth wich can be reach with N pistons (1 piston = 10 units) and allocate the value if it is ok.
-                        foreach(Floor floor in floors)
+                        if (floors.Count >= 2)
                         {
-                            if (floor.Height > (this._pistons.Count * 10))
+                            // Check maximum heigth wich can be reach with N pistons (1 piston = 10 units) and allocate the value if it is ok.
+                            foreach (Floor floor in floors)
                             {
-                                this._errorMessage = "The floor " + floor.Name + " cannot be reached, because there are not enough pistons.";
-                                this._isInitializedErrorFree = false;
-                                if (this._lcdMonitor != null)
+                                if (floor.Height > (this._pistons.Count * 10))
                                 {
-                                    this._lcdMonitor.WriteText("Elevator initialization failed!\n" + this._errorMessage);
+                                    this._isInitializedErrorFree = false;
+                                    this._errorMessage += "The floor " + floor.Name + " cannot be reached, because there are not enough pistons.\n";
+                                    if (this._lcdMonitor != null)
+                                    {
+                                        this._lcdMonitor.WriteText("Elevator initialization failed!\n\n" + this._errorMessage);
+                                    }
+                                }
+                                else
+                                {
+                                    this._floors.Add(floor);
                                 }
                             }
-                            else
+                        }
+                        else
+                        {
+                            this._isInitializedErrorFree = false;
+                            this._errorMessage = "You need at least two floors!";
+                            if (this._lcdMonitor != null)
                             {
-                                this._floors.Add(floor);
+                                this._lcdMonitor.WriteText("Elevator initialization failed!\n\n" + this._errorMessage);
                             }
                         }
                     }
                     else
                     {
-                        this._errorMessage = "You need at least two floors!";
-                        this._isInitializedErrorFree = false;
                         if (this._lcdMonitor != null)
                         {
-                            this._lcdMonitor.WriteText("Elevator initialization failed!\n" + this._errorMessage);
+                            this._lcdMonitor.WriteText("Elevator initialization failed!\n\n" + this._errorMessage);
                         }
                     }
                 }
-
-                // Close all doors.
-                if(this.IsInitializedErrorFree)
+                else
                 {
+                    this._isInitializedErrorFree = false;
+                    this._errorMessage = "There is no elevator group with needed blocks, yet!\n";
+                }
+
+                // Close all doors and stop sound.
+                if (this.IsInitializedErrorFree)
+                {
+                    if (this._lcdMonitor != null)
+                    {
+                        this._lcdMonitor.WriteText("Elevator initilized successfully.");
+                    }
                     this.CloseAllDoors();
+                    this._soundBlock.Stop();
                 }
 
             } // End of constructor
+
 
             internal int ElapsedTime 
             { 
@@ -182,6 +231,10 @@ namespace IngameScript
                 this._direction = Direction.none;
                 this._destinationFloor = null;
                 this._startTime = DateTime.MinValue; // Set to "0" for "reset".
+                if (this._soundBlock != null)
+                {
+                    this._soundBlock.Stop(); // Stop playing sound
+                }
             }
 
             private void OpenDoorsOnDestination()
@@ -205,9 +258,27 @@ namespace IngameScript
 
             internal void UpdateLcdScreen()
             {
+                bool tmpDestinationReached = this.IsDestinationReached;
                 string tmpName = this._destinationFloor == null ? "null" : this._destinationFloor.Name;
                 string tmpDestHeight = this._destinationFloor == null ? "null" : this._destinationFloor.Height.ToString();
                 string tmpErrorMsg = this._errorMessage == "" ? "no errors found :-)" : this._errorMessage;
+
+                string tmpSoundTrack = "";
+                if (this._soundBlock == null)
+                {
+                    tmpSoundTrack = "no existing sound block";
+                }
+                else
+                {
+                    if (tmpDestinationReached)
+                    {
+                        tmpSoundTrack = "sound stopped";
+                    }
+                    else
+                    {
+                        tmpSoundTrack = "playing " + this._soundBlock.SelectedSound;
+                    }                    
+                }                 
 
                 if (this._lcdMonitor != null)
                 {
@@ -220,7 +291,8 @@ namespace IngameScript
                         "\nCurrent height: " + this.ElevatorPosition.ToString() +
                         "\nDestination height: " + tmpDestHeight.ToString() +
                         "\nDirection: " + this._direction.ToString() +
-                        "\nDestination reached: " + this.IsDestinationReached.ToString() +
+                        "\nDestination reached: " + tmpDestinationReached.ToString() +
+                        "\nSoundBlock: " + tmpSoundTrack +
                         "\n\nError: " + tmpErrorMsg
                     , false);
                 }
@@ -296,12 +368,18 @@ namespace IngameScript
 
             internal void Move()
             {
+                // If startTime is minvalue, we know, that it is the first run of Move-method.
+                // We can use this to start some things one time.
                 if (this._startTime == DateTime.MinValue)
                 {
                     this._startTime = DateTime.Now; // The real starttime when someone starts the elevator.
+                    if(this._soundBlock != null)
+                    {
+                        this._soundBlock.Play();
+                    }
                 }
 
-                if (this.ElapsedTime > this.StartDelay)
+                if (this.ElapsedTime >= this.StartDelay)
                 {
                     // Distribute the total velocity to all pistons to reach smooth ride.
                     // Important notice: If we distribute the velocity, we will get an new problem,

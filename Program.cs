@@ -36,38 +36,24 @@ namespace IngameScript
             // 2nd floor: 10m + 6,8m + 0m
             // 3rd floor: 10m + 10m + 6,8m
 
-            List<IMyPistonBase> pistons = new List<IMyPistonBase>();
-            pistons.Add(GridTerminalSystem.GetBlockWithName("_piston_1") as IMyPistonBase);
-            pistons.Add(GridTerminalSystem.GetBlockWithName("_piston_2") as IMyPistonBase);
-            pistons.Add(GridTerminalSystem.GetBlockWithName("_piston_3") as IMyPistonBase);
+            IMyBlockGroup elevatorObjects = GridTerminalSystem.GetBlockGroupWithName("main_elevator");
 
             List<Floor> floors = new List<Floor>();
-            floors.Add(new Floor("floor1", 1.8f, GridTerminalSystem.GetBlockGroupWithName("grp_floor1")));
-            floors.Add(new Floor("floor2", 16.8f, GridTerminalSystem.GetBlockGroupWithName("grp_floor2")));
-            floors.Add(new Floor("floor3", 26.8f, GridTerminalSystem.GetBlockGroupWithName("grp_floor3")));
+            floors.Add(new Floor("floor1", 1.8f, GridTerminalSystem.GetBlockGroupWithName("grpFloor1")));
+            floors.Add(new Floor("floor2", 16.8f, GridTerminalSystem.GetBlockGroupWithName("grpFloor2")));
+            floors.Add(new Floor("floor3", 26.8f, GridTerminalSystem.GetBlockGroupWithName("grpFloor3")));
 
-            IMyTextPanel lcdDisplay = GridTerminalSystem.GetBlockWithName("_output_1") as IMyTextPanel;
-
-            elevator = new Elevator(pistons, floors, lcdDisplay);
-            elevator.StartDelay = 3;
+            elevator = new Elevator(elevatorObjects, floors);
+            elevator.StartDelay = 0;
 
             Runtime.UpdateFrequency = UpdateFrequency.None;
 
             if(elevator.IsInitializedErrorFree)
             {
-                if(lcdDisplay != null)
-                {
-                    lcdDisplay.WriteText("Elevator initilized successfully.");
-                }
-
                 Echo("Elevator initilized successfully.");
             }
             else
             {
-                if (lcdDisplay != null)
-                {
-                    lcdDisplay.WriteText("An error occured during elevator initializing: " + elevator.ErrorMessage);
-                }
                 Echo("An error occured during elevator initializing: " + elevator.ErrorMessage);
             }
         }
