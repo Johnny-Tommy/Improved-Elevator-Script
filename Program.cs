@@ -77,7 +77,7 @@ namespace IngameScript
                 {
                     if (elevator.IsDestinationReached)
                     {
-                        elevator.StopElevator();
+                        elevator.Stop();
                         Runtime.UpdateFrequency = UpdateFrequency.None;
                     }
                     else

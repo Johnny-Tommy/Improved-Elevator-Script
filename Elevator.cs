@@ -150,8 +150,11 @@ namespace IngameScript
                     {
                         this._lcdMonitor.WriteText("Elevator initilized successfully.");
                     }
-                    this.CloseAllDoors();
-                    this._soundBlock.Stop();
+
+                    if (this._soundBlock != null)
+                    {
+                        this._soundBlock.Stop();
+                    }                    
                 }
 
             } // End of constructor
@@ -215,44 +218,33 @@ namespace IngameScript
                 }
             }
 
-            internal void StopElevator(bool openDoors = true)
+            internal void Stop()
             {
                 for (int i = 0; i < this._pistons.Count; i++)
                 {
                     this._pistons[i].Velocity = 0.0000f;
                 }
 
-                if (openDoors)
+                // opens doors, change display text and so on, indirectly when set the status
+                foreach (Floor floor in this._floors)
                 {
-                    // open all doors, if there are some
-                    this.OpenDoorsOnDestination();
+                    if (floor.Name == this._destinationFloor.Name)
+                    {
+                        floor.SetStatus(Floor.Status.Arrived); // The floor from where the elevator was called.
+                    }
+                    else
+                    {
+                        floor.SetStatus(Floor.Status.Idle); // The other floors.
+                    }
                 }
 
                 this._direction = Direction.none;
                 this._destinationFloor = null;
                 this._startTime = DateTime.MinValue; // Set to "0" for "reset".
+
                 if (this._soundBlock != null)
                 {
                     this._soundBlock.Stop(); // Stop playing sound
-                }
-            }
-
-            private void OpenDoorsOnDestination()
-            {
-                foreach(IMyDoor door in this._destinationFloor.Doors)
-                {
-                    door.OpenDoor();                  
-                }
-            }
-
-            private void CloseAllDoors()
-            {
-                foreach(Floor floor in this._floors)
-                {
-                    foreach(IMyDoor door in floor.Doors)
-                    {
-                        door.CloseDoor();
-                    }
                 }
             }
 
@@ -354,8 +346,6 @@ namespace IngameScript
                         this._direction = Direction.down;
                     }
 
-                    this.CloseAllDoors();
-
                     return true;
                 }
                 else
@@ -368,15 +358,28 @@ namespace IngameScript
 
             internal void Move()
             {
-                // If startTime is minvalue, we know, that it is the first run of Move-method.
+                // If startTime is minvalue, we know, that it is the first run of Move-method (per "journey" ;-] ).
                 // We can use this to start some things one time.
                 if (this._startTime == DateTime.MinValue)
                 {
+                    // Execute some commands once per journey...
                     this._startTime = DateTime.Now; // The real starttime when someone starts the elevator.
-                    if(this._soundBlock != null)
+                    if (this._soundBlock != null)
                     {
                         this._soundBlock.Play();
                     }
+
+                    foreach(Floor floor in this._floors)
+                    {
+                        if(floor.Name == this._destinationFloor.Name)
+                        {
+                            floor.SetStatus(Floor.Status.Coming); // The floor from where the elevator was called.
+                        }
+                        else
+                        {
+                            floor.SetStatus(Floor.Status.Busy);
+                        }
+                    }                    
                 }
 
                 if (this.ElapsedTime >= this.StartDelay)
@@ -398,7 +401,7 @@ namespace IngameScript
                     }
                     else // direction = none
                     {
-                        this.StopElevator();
+                        this.Stop();
                     }
                 }
             }
